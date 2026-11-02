@@ -1,6 +1,6 @@
 import csv
 from typing import List, Dict, Tuple, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 @dataclass
 class Song:
@@ -39,12 +39,24 @@ class Recommender:
         self.songs = songs
 
     def recommend(self, user: UserProfile, k: int = 5) -> List[Song]:
-        # TODO: Implement recommendation logic
-        return self.songs[:k]
+        """Return the top k songs for the user, ranked by score_song, highest first."""
+        prefs = _profile_to_prefs(user)
+        ranked = sorted(self.songs, key=lambda song: score_song(prefs, asdict(song))[0], reverse=True)
+        return ranked[:k]
 
     def explain_recommendation(self, user: UserProfile, song: Song) -> str:
-        # TODO: Implement explanation logic
-        return "Explanation placeholder"
+        """Return the scoring reasons for one song as a single readable string."""
+        _, reasons = score_song(_profile_to_prefs(user), asdict(song))
+        return "; ".join(reasons) if reasons else "No matching preferences"
+
+
+def _profile_to_prefs(user: UserProfile) -> Dict:
+    """Convert a UserProfile into the prefs dict that score_song expects."""
+    return {
+        "genre": user.favorite_genre,
+        "mood": user.favorite_mood,
+        "energy": user.target_energy,
+    }
 
 def load_songs(csv_path: str) -> List[Dict]:
     """Load songs from a CSV file into dicts, converting numeric columns to int/float."""

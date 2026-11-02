@@ -131,11 +131,177 @@ Top recommendations:
 
 ## Experiments You Tried
 
-Use this section to document the experiments you ran. For example:
+I ran seven profiles through `python -m src.main`: three typical listeners and four adversarial edge cases meant to trick the scoring rule. The profiles are defined in `src/main.py`. Each block below is the terminal output, followed by what I observed.
 
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or valence to the score
-- How did your system behave for different types of users
+### Standard profiles
+
+#### High-Energy Pop
+
+```
+User profile: genre=pop, mood=happy, energy=0.9
+
+1. Sunrise City by Neon Echo - Score: 4.38
+     - genre match: pop (+2.0)
+     - mood match: happy (+1.0)
+     - energy 0.82 vs target 0.90 (+1.38)
+2. Gym Hero by Max Pulse - Score: 3.46
+     - genre match: pop (+2.0)
+     - energy 0.93 vs target 0.90 (+1.46)
+3. Rooftop Lights by Indigo Parade - Score: 2.29
+     - mood match: happy (+1.0)
+     - energy 0.76 vs target 0.90 (+1.29)
+4. Storm Runner by Voltline - Score: 1.48
+     - energy 0.91 vs target 0.90 (+1.48)
+5. Neon Overdrive by Pulse Cartel - Score: 1.41
+     - energy 0.96 vs target 0.90 (+1.41)
+```
+
+**Observation:** Matches intuition. Sunrise City matches all three features; Gym Hero follows on genre and a closer energy.
+
+#### Chill Lofi
+
+```
+User profile: genre=lofi, mood=chill, energy=0.4
+
+1. Midnight Coding by LoRoom - Score: 4.47
+     - genre match: lofi (+2.0)
+     - mood match: chill (+1.0)
+     - energy 0.42 vs target 0.40 (+1.47)
+2. Library Rain by Paper Lanterns - Score: 4.42
+     - genre match: lofi (+2.0)
+     - mood match: chill (+1.0)
+     - energy 0.35 vs target 0.40 (+1.42)
+3. Focus Flow by LoRoom - Score: 3.50
+     - genre match: lofi (+2.0)
+     - energy 0.40 vs target 0.40 (+1.50)
+4. Spacewalk Thoughts by Orbit Bloom - Score: 2.32
+     - mood match: chill (+1.0)
+     - energy 0.28 vs target 0.40 (+1.32)
+5. Coffee Shop Stories by Slow Stereo - Score: 1.46
+     - energy 0.37 vs target 0.40 (+1.46)
+```
+
+**Observation:** Matches intuition. All three lofi songs lead, and the ambient and jazz songs that follow share the calm feel.
+
+#### Deep Intense Rock
+
+```
+User profile: genre=rock, mood=intense, energy=0.95
+
+1. Storm Runner by Voltline - Score: 4.44
+     - genre match: rock (+2.0)
+     - mood match: intense (+1.0)
+     - energy 0.91 vs target 0.95 (+1.44)
+2. Gym Hero by Max Pulse - Score: 2.47
+     - mood match: intense (+1.0)
+     - energy 0.93 vs target 0.95 (+1.47)
+3. Neon Overdrive by Pulse Cartel - Score: 1.48
+     - energy 0.96 vs target 0.95 (+1.48)
+4. Iron Requiem by Black Cathedral - Score: 1.47
+     - energy 0.97 vs target 0.95 (+1.47)
+5. Sunrise City by Neon Echo - Score: 1.30
+     - energy 0.82 vs target 0.95 (+1.30)
+```
+
+**Observation:** There is only one rock song, so after Storm Runner the list fills with high-energy songs. Gym Hero (pop) beats Iron Requiem (metal) because its mood is "intense", and metal gets no credit for being close to rock.
+
+### Adversarial profiles
+
+#### Conflicting: melancholy but high energy
+
+```
+User profile: genre=folk, mood=melancholy, energy=0.9
+
+1. Grey November by Wren Hollow - Score: 3.60
+     - genre match: folk (+2.0)
+     - mood match: melancholy (+1.0)
+     - energy 0.30 vs target 0.90 (+0.60)
+2. Storm Runner by Voltline - Score: 1.48
+     - energy 0.91 vs target 0.90 (+1.48)
+3. Gym Hero by Max Pulse - Score: 1.46
+     - energy 0.93 vs target 0.90 (+1.46)
+4. Neon Overdrive by Pulse Cartel - Score: 1.41
+     - energy 0.96 vs target 0.90 (+1.41)
+5. Iron Requiem by Black Cathedral - Score: 1.40
+     - energy 0.97 vs target 0.90 (+1.40)
+```
+
+**Observation:** The folk song has energy 0.30 against a target of 0.90, yet it wins by more than double (3.60 vs 1.48). Genre and mood points (3.0) outweigh the largest possible energy penalty, so the top result ignores the energy request entirely.
+
+#### Genre not in catalog (blues/sad)
+
+```
+User profile: genre=blues, mood=sad, energy=0.3
+
+1. Grey November by Wren Hollow - Score: 1.50
+     - energy 0.30 vs target 0.30 (+1.50)
+2. Spacewalk Thoughts by Orbit Bloom - Score: 1.47
+     - energy 0.28 vs target 0.30 (+1.47)
+3. Library Rain by Paper Lanterns - Score: 1.42
+     - energy 0.35 vs target 0.30 (+1.42)
+4. Coffee Shop Stories by Slow Stereo - Score: 1.40
+     - energy 0.37 vs target 0.30 (+1.40)
+5. Moonlit Sonata Remix by Elise Varo - Score: 1.38
+     - energy 0.22 vs target 0.30 (+1.38)
+```
+
+**Observation:** Nothing matches genre or mood, so energy alone decides. The top 5 scores span only 0.12 (1.38-1.50), which makes the ranking close to arbitrary.
+
+#### Genre vs. vibe: pop fan wants calm
+
+```
+User profile: genre=pop, mood=chill, energy=0.3
+
+1. Sunrise City by Neon Echo - Score: 2.72
+     - genre match: pop (+2.0)
+     - energy 0.82 vs target 0.30 (+0.72)
+2. Gym Hero by Max Pulse - Score: 2.55
+     - genre match: pop (+2.0)
+     - energy 0.93 vs target 0.30 (+0.55)
+3. Spacewalk Thoughts by Orbit Bloom - Score: 2.47
+     - mood match: chill (+1.0)
+     - energy 0.28 vs target 0.30 (+1.47)
+4. Library Rain by Paper Lanterns - Score: 2.42
+     - mood match: chill (+1.0)
+     - energy 0.35 vs target 0.30 (+1.42)
+5. Midnight Coding by LoRoom - Score: 2.32
+     - mood match: chill (+1.0)
+     - energy 0.42 vs target 0.30 (+1.32)
+```
+
+**Observation:** The two pop songs (energy 0.82 and 0.93) outrank songs that fit the requested mood and energy almost perfectly. This is the clearest case of genre over-prioritization.
+
+#### Middle of the road: energy 0.5, no matches
+
+```
+User profile: genre=k-pop, mood=party, energy=0.5
+
+1. Dusty Porch Light by Hollow Creek - Score: 1.47
+     - energy 0.48 vs target 0.50 (+1.47)
+2. Island Drift by Salt & Sun - Score: 1.47
+     - energy 0.52 vs target 0.50 (+1.47)
+3. Velvet Hours by Amara Skye - Score: 1.42
+     - energy 0.45 vs target 0.50 (+1.42)
+4. Midnight Coding by LoRoom - Score: 1.38
+     - energy 0.42 vs target 0.50 (+1.38)
+5. Focus Flow by LoRoom - Score: 1.35
+     - energy 0.40 vs target 0.50 (+1.35)
+```
+
+**Observation:** Scores are nearly identical (1.47, 1.47, 1.42, ...). Dusty Porch Light and Island Drift tie to two decimals, and the order is broken by their position in the CSV.
+
+### Accuracy and surprises
+
+**Does it feel right?** For coherent profiles, yes. For the Chill Lofi profile, the three lofi songs lead and the ambient and jazz songs that follow share the same calm, acoustic feel. The weakest case is Deep Intense Rock: a rock fan would expect Iron Requiem (metal) at #2, but Gym Hero (pop) ranks above it because the system matches the word "intense" and has no sense that metal is close to rock.
+
+**Why does Sunrise City rank first for pop/happy/0.8?** It is the only song that earns all three awards: genre match (+2.0), mood match (+1.0), and energy 0.82 against a target of 0.80 (+1.47). That totals 4.47 out of 4.5. The runner-up, Gym Hero, earns the genre points and a good energy score but misses the mood match, so it scores 3.30.
+
+**Does one song dominate every list?** No. The #1 song changes for most profiles (Sunrise City, Midnight Coding, Storm Runner, Grey November, Dusty Porch Light). Two surprises, though:
+
+- **Gym Hero shows up in 4 of the 7 top-5 lists** (as pop's #2, rock's #2, the conflicting profile's #3, and the pop-wants-calm profile's #2). Its very high energy (0.93) and "intense" mood overlap with many profiles, and it is one of only two pop songs.
+- **Grey November is #1 for two different profiles.** For the conflicting profile it wins on genre and mood alone. For the blues/sad profile it wins by chance, because its energy is exactly 0.30.
+
+The genre weight is the main driver of surprising results. A genre match is worth more than the full range of energy fit, so a genre-matching song can beat a much better overall fit.
 
 ---
 
