@@ -320,28 +320,25 @@ The change was more accurate in one case and just different in the rest. It fixe
 
 ## Limitations and Risks
 
-Summarize some limitations of your recommender.
+- **Tiny, uneven catalog.** There are only 18 songs, and 13 of the 15 genres have exactly one. Lofi fans get three strong matches. Rock and jazz fans get one, then unrelated songs.
+- **Genre is over-weighted.** A genre match (2.0) plus a mood match (1.0) beats the largest possible energy penalty (1.5). A calm folk song won for a user who asked for very high energy, and loud pop songs won for a pop fan who asked for calm music.
+- **Exact matching only.** Metal gets no credit for being close to rock, and indie pop gets none for being close to pop.
+- **Unknown tastes get arbitrary results.** If the user's genre is not in the catalog, the top 5 scores fall within 0.12 of each other.
+- **Most features are ignored.** Valence, danceability, acousticness, and tempo are loaded but not scored, so angry metal and euphoric EDM can look alike.
+- **No lyrics, language, or listening history.** The system only knows what the user types in, and it cannot learn from other listeners.
+- **Repeat winners.** Gym Hero appeared in 4 of the 7 top-5 lists I tested.
 
-Examples:
-
-- It only works on a tiny catalog
-- It does not understand lyrics or language
-- It might over favor one genre or mood
-
-You will go deeper on this in your model card.
+See [model_card.md](model_card.md) for more detail.
 
 ---
 
 ## Reflection
 
-Read and complete `model_card.md`:
+Full details are in the [**Model Card**](model_card.md).
 
-[**Model Card**](model_card.md)
+**How recommenders turn data into predictions.** A recommender can be very simple and still feel real. Three inputs and a few points for each match were enough to give sensible lists for the Chill Lofi and High-Energy Pop profiles. The prediction is just a ranking, and every number in it comes from a choice about what to count. Scoring energy by closeness, not "higher is better", was one of those choices, and it made the results fairer to users at both ends of the scale. My tests also showed the limits of such a rule. The same song (Gym Hero) appeared in four of seven lists, because the system matches labels and numbers and cannot hear that workout music feels different from happy pop.
 
-Write 1 to 2 paragraphs here about what you learned:
-
-- about how recommenders turn data into predictions
-- about where bias or unfairness could show up in systems like this
+**Where bias or unfairness could show up.** Bias showed up in the weights and in the data. Genre was worth more than energy, so a user's genre label could override what they actually asked for. The catalog had three lofi songs and one of most other genres, so lofi fans got better recommendations than rock or jazz fans through no fault of their own. A real system at scale would have the same problems in a quieter form: whichever tastes have the most data, or the heaviest weight, get served best, and everyone else gets worse results without any obvious error to point at.
 
 
 
