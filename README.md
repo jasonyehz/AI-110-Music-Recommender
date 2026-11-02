@@ -303,6 +303,19 @@ User profile: genre=k-pop, mood=party, energy=0.5
 
 The genre weight is the main driver of surprising results. A genre match is worth more than the full range of energy fit, so a genre-matching song can beat a much better overall fit.
 
+### Weight-shift experiment
+
+I doubled the energy weight (1.5 to 3.0) and halved the genre weight (2.0 to 1.0), then reran all seven profiles. The maximum score becomes 1.0 + 1.0 + 3.0 = 5.0, and a perfect match still hits it exactly (Sunrise City scores 5.00). The experiment was run without changing the committed weights, which are still 2.0 / 1.0 / 1.5.
+
+| Profile | Result |
+|---|---|
+| Pop fan wants calm | **Changed, and more accurate.** The top 3 became Spacewalk Thoughts, Library Rain, and Midnight Coding (all calm and chill). The two high-energy pop songs dropped out of the top 5. |
+| Conflicting (folk, 0.9) | **Still wrong.** Grey November (energy 0.30) stays #1, 3.20 vs 2.97, because genre plus mood still beats the energy mismatch. |
+| Deep Intense Rock | **Unchanged.** Gym Hero still outranks Iron Requiem. |
+| The other four profiles | **Same order**, with higher scores. |
+
+The change was more accurate in one case and just different in the rest. It fixed the case where genre was overriding a clear energy preference. It did not fix the rock/metal problem or the conflicting profile, which need related-genre credit or additional features like `valence`, not a different weighting.
+
 ---
 
 ## Limitations and Risks

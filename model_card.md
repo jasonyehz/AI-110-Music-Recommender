@@ -62,14 +62,7 @@ Prompts:
 
 ## 6. Limitations and Bias 
 
-Where the system struggles or behaves unfairly. 
-
-Prompts:  
-
-- Features it does not consider  
-- Genres or moods that are underrepresented  
-- Cases where the system overfits to one preference  
-- Ways the scoring might unintentionally favor some users  
+The biggest weakness I found is that the system over-prioritizes genre, and the tiny catalog makes this worse. A genre match is worth 2.0 points, and the genre and mood matches together add up to 3.0, which is more than the largest possible energy penalty of 1.5. In my "pop fan wants calm" test, two high-energy pop songs (energy 0.82 and 0.93) outranked chill songs that matched the requested mood and energy almost perfectly, and in the "melancholy but high energy" test a folk song with energy 0.30 beat every song near the requested 0.90. The catalog also favors some users over others: 13 of its 15 genres have exactly one song, so a lofi fan gets three strong matches while a rock or jazz fan gets one and then a list of unrelated songs. A user whose genre is not in the catalog at all gets scores bunched within 0.12 of each other, so their ranking is nearly arbitrary. Genre matching is also all-or-nothing, so metal earns no credit for being close to rock.
 
 ---
 
