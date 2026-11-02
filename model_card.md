@@ -123,3 +123,5 @@ Prompts:
 - What you learned about recommender systems  
 - Something unexpected or interesting you discovered  
 - How this changed the way you think about music recommendation apps  
+
+I learned that a weight is a decision about whose taste counts. Genre was worth 2.0 points and the energy penalty tops out at 1.5, so a calm folk song beat every high-energy song for a user who preferred 0.9 energy. I used Claude extensively throughout the project. I ran every profile myself and compared the output to what I would expect. This is mainly due to Claude's inaccuracies that must be monitored at all times. 
