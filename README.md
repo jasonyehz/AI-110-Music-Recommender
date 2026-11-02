@@ -17,7 +17,7 @@ Replace this paragraph with your own summary of what your version does.
 
 ## How The System Works
 
-Explain your design in plain language.
+Real-world recommenders like Spotify combine multiple signals in order to determine what is best for a user. Collaborative filtering learns from what millions of listeners play, skip, save. Content-based filtering matches the audi otraits of songs, such as energy and mood. They rank songs based on that data and match it with a user's listening history to determine what is the best song to recommend. My version is very simple content-based recommender. It scores each song by how closely each attribute match a user's stated taste. Genre will have the most weight (2pts), then energy (1.5pts), then mood (1 points). It cannot discover patterns across users, but it will determine what is best for each user based on their inputted data.
 
 Some prompts to answer:
 
