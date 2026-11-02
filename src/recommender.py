@@ -94,11 +94,10 @@ class Recommender:
         diversity: bool = False,
     ) -> List[Song]:
         """Return the top k songs for the user, ranked by score_song, highest first."""
-        by_id = {song.id: song for song in self.songs}
-        ranked = recommend_songs(
-            _profile_to_prefs(user), [asdict(song) for song in self.songs], k, mode, diversity
-        )
-        return [by_id[song["id"]] for song, _, _ in ranked]
+        song_dicts = [asdict(song) for song in self.songs]
+        by_dict = {id(song_dict): song for song_dict, song in zip(song_dicts, self.songs)}
+        ranked = recommend_songs(_profile_to_prefs(user), song_dicts, k, mode, diversity)
+        return [by_dict[id(song_dict)] for song_dict, _, _ in ranked]
 
     def explain_recommendation(
         self, user: UserProfile, song: Song, mode: Union[str, ScoringMode] = DEFAULT_MODE
@@ -131,14 +130,32 @@ def load_songs(csv_path: str) -> List[Dict]:
     """Load songs from a CSV file into dicts, converting numeric columns and splitting mood tags."""
     songs: List[Dict] = []
     with open(csv_path, newline="", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            for field_name in ("id", "popularity", "release_decade"):
-                row[field_name] = int(row[field_name])
-            for field_name in ("energy", "tempo_bpm", "valence", "danceability", "acousticness", "instrumentalness"):
-                row[field_name] = float(row[field_name])
-            row["mood_tags"] = [tag for tag in row["mood_tags"].split("|") if tag]
+        for line_number, row in enumerate(csv.DictReader(f), start=2):
+            try:
+                for field_name in ("id", "popularity", "release_decade"):
+                    row[field_name] = int(row[field_name])
+                for field_name in ("energy", "tempo_bpm", "valence", "danceability", "acousticness", "instrumentalness"):
+                    row[field_name] = float(row[field_name])
+                row["mood_tags"] = [tag.strip() for tag in row["mood_tags"].split("|") if tag.strip()]
+            except (KeyError, ValueError, AttributeError) as error:
+                raise ValueError(f"{csv_path} line {line_number}: bad or missing value ({error})") from error
             songs.append(row)
     return songs
+
+def _same_text(song_value: Optional[str], wanted: Optional[str]) -> bool:
+    """Compare two labels ignoring case and surrounding spaces; no preference never matches."""
+    if wanted is None or song_value is None:
+        return False
+    wanted = str(wanted).strip().lower()
+    return wanted != "" and str(song_value).strip().lower() == wanted
+
+
+def _clean_tags(tags) -> List[str]:
+    """Return tags as a lowercase list without duplicates. A single string counts as one tag."""
+    if isinstance(tags, str):
+        tags = [tags]
+    return list(dict.fromkeys(str(tag).strip().lower() for tag in tags if str(tag).strip()))
+
 
 def numeric_similarity(song_value: float, target_value: float, value_range: float = 1.0) -> float:
     """Return a 0.0-1.0 closeness score that falls linearly with distance from the target, above or below."""
@@ -154,53 +171,53 @@ def score_song(
     score = 0.0
     reasons: List[str] = []
 
-    if song["genre"] == user_prefs.get("genre"):
+    if _same_text(song["genre"], user_prefs.get("genre")):
         score += weights.genre
         reasons.append(f"genre match: {song['genre']} (+{weights.genre:.1f})")
 
-    if song["mood"] == user_prefs.get("mood"):
+    if _same_text(song["mood"], user_prefs.get("mood")):
         score += weights.mood
         reasons.append(f"mood match: {song['mood']} (+{weights.mood:.1f})")
 
     if "energy" in user_prefs:
-        similarity = numeric_similarity(float(song["energy"]), user_prefs["energy"])
+        target_energy = float(user_prefs["energy"])
+        similarity = numeric_similarity(float(song["energy"]), target_energy)
         points = weights.energy * similarity
         score += points
-        reasons.append(
-            f"energy {float(song['energy']):.2f} vs target {user_prefs['energy']:.2f} (+{points:.2f})"
-        )
+        reasons.append(f"energy {float(song['energy']):.2f} vs target {target_energy:.2f} (+{points:.2f})")
 
     # Advanced attributes: each is scored only when the user gave a preference for it.
-    wanted_tags = user_prefs.get("tags")
+    wanted_tags = _clean_tags(user_prefs.get("tags") or [])
     if wanted_tags:
-        shared = [tag for tag in wanted_tags if tag in song.get("mood_tags", [])]
+        song_tags = _clean_tags(song.get("mood_tags", []))
+        shared = [tag for tag in wanted_tags if tag in song_tags]
         points = weights.tags * len(shared) / len(wanted_tags)
         if shared:
             score += points
             reasons.append(f"mood tags {'/'.join(shared)} (+{points:.2f})")
 
     if "popularity" in user_prefs and "popularity" in song:
-        points = weights.popularity * numeric_similarity(song["popularity"], user_prefs["popularity"], 100.0)
+        target = float(user_prefs["popularity"])
+        points = weights.popularity * numeric_similarity(song["popularity"], target, 100.0)
         score += points
-        reasons.append(f"popularity {song['popularity']} vs target {user_prefs['popularity']} (+{points:.2f})")
+        reasons.append(f"popularity {song['popularity']} vs target {target:.0f} (+{points:.2f})")
 
     if "decade" in user_prefs and "release_decade" in song:
         # 60 years (1960s to 2020s) is the widest gap in the catalog.
-        points = weights.decade * numeric_similarity(song["release_decade"], user_prefs["decade"], 60.0)
+        target = float(user_prefs["decade"])
+        points = weights.decade * numeric_similarity(song["release_decade"], target, 60.0)
         score += points
-        reasons.append(f"{song['release_decade']}s vs preferred {user_prefs['decade']}s (+{points:.2f})")
+        reasons.append(f"{song['release_decade']}s vs preferred {target:.0f}s (+{points:.2f})")
 
     if "instrumentalness" in user_prefs and "instrumentalness" in song:
-        points = weights.instrumentalness * numeric_similarity(
-            float(song["instrumentalness"]), user_prefs["instrumentalness"]
-        )
+        target = float(user_prefs["instrumentalness"])
+        points = weights.instrumentalness * numeric_similarity(float(song["instrumentalness"]), target)
         score += points
         reasons.append(
-            f"instrumentalness {float(song['instrumentalness']):.2f} vs target "
-            f"{user_prefs['instrumentalness']:.2f} (+{points:.2f})"
+            f"instrumentalness {float(song['instrumentalness']):.2f} vs target {target:.2f} (+{points:.2f})"
         )
 
-    if song.get("language") is not None and song["language"] == user_prefs.get("language"):
+    if _same_text(song.get("language"), user_prefs.get("language")):
         score += weights.language
         reasons.append(f"language match: {song['language']} (+{weights.language:.1f})")
 
@@ -214,6 +231,8 @@ def recommend_songs(
     diversity: bool = False,
 ) -> List[Tuple[Dict, float, str]]:
     """Score every song and return the top k as (song, score, explanation), highest score first."""
+    if k < 0:
+        raise ValueError("k must be 0 or greater")
     scored = [(song, *score_song(user_prefs, song, mode)) for song in songs]
 
     if not diversity:

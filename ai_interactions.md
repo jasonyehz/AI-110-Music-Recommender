@@ -2,7 +2,7 @@
 
 > **Stretch features only.** Only fill in the sections that apply to stretch features you attempted. If you did not attempt a stretch feature, leave its section blank or delete it. This file is not required for the core project.
 
-All work below was done with Claude Code (Claude Sonnet 5.5) in one session. The prompts are the challenge instructions pasted into the chat. The verification notes list the checks that were run and what they showed. Add your own notes where you checked or changed something yourself.
+All work below was done with Claude Code (Claude Sonnet 5.5) in one session. The prompts are the challenge instructions pasted into the chat. The verification notes list the checks Claude ran in that session and what they showed.
 
 ---
 
@@ -43,7 +43,22 @@ Challenge 1 (advanced song features), plus the related changes for Challenges 2,
 - **Old results unchanged:** I reran the pop profile in the default mode with no advanced preferences. The scores still match the earlier README output (4.38, 3.46, 2.29, ...), so the new code did not change the original behavior.
 - **Tests:** `pytest` passed (8 tests). One of my new tests failed on the first run, and the test was wrong, not the code. The diversity penalty (1.5 total) is not big enough to push a strong match (a song with a genre match and a close energy) below a weak one. I changed the test data so the penalty can matter, and it passed.
 - **Advanced profiles:** the "Instrumental study music" profile puts the instrumental lofi songs on top, and the "Nostalgic 90s country fan" profile shows the decade and tag points in the reasons.
-- **Things to review yourself:** the new attribute values are made up. The weights for the new attributes (0.5 to 1.0) are a first guess and have not been tuned.
+- **Known limits:** the new attribute values are made up. The weights for the new attributes (0.5 to 1.0) are a first guess and have not been tuned. A profile with no preferences scores every song 0, so the list is just the first songs in the CSV with empty reasons.
+
+**Bug sweep (follow-up pass):** I asked Claude to check edge cases and look for silly bugs. It ran a script of unusual inputs against `load_songs`, `score_song`, `recommend_songs`, `Recommender`, and `format_table`, then fixed what broke.
+
+| Problem found | Fix |
+|---|---|
+| `k=-1` returned 17 songs (or 0 with diversity on) because of how Python slices | A negative `k` now raises a clear `ValueError`. `k=0` returns an empty list. |
+| An empty results table crashed with a `TypeError` | `format_table` now handles zero rows. |
+| `"Pop"` or `"HAPPY"` did not match `pop` or `happy` | Genre, mood, language, and tags are compared ignoring case and spaces. |
+| Repeated tags (`["bright", "bright"]`) were counted twice | Wanted tags are de-duplicated. |
+| `tags="warm"` as a plain string was split into letters | A single string now counts as one tag. |
+| `Recommender.recommend` returned the same song twice if two songs shared an id | It now matches songs by position, not by id. |
+| A bad number in the CSV gave an unhelpful error | `load_songs` reports the line number of the bad row. |
+| Numeric preferences given as text (`"0.8"`) raised a `TypeError` | They are converted to numbers first. |
+
+Checks after the fixes: 16 tests pass (8 are regression tests for the bugs above). The original scores are unchanged (Sunrise City 4.47, Gym Hero 3.30, Rooftop Lights 2.44). I ran all 9 profiles in all 3 modes with diversity on and off. Each gave 5 distinct songs, the lists were sorted when diversity was off, and no score was above its mode's maximum. The command line options and their error messages behave correctly.
 
 ---
 

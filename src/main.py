@@ -53,7 +53,7 @@ def format_table(recommendations: list) -> str:
         rows.append([[str(rank)], [song["title"]], [song["artist"]], [f"{score:.2f}"], reasons])
 
     widths = [
-        max(len(headers[i]), *(len(line) for row in rows for line in row[i]))
+        max([len(headers[i])] + [len(line) for row in rows for line in row[i]])
         for i in range(len(headers))
     ]
     border = "+" + "+".join("-" * (w + 2) for w in widths) + "+"

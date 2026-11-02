@@ -137,3 +137,65 @@ def test_diversity_penalty_demotes_repeated_artist():
     assert plain[:2] == ["First", "Second"]
     assert [s["title"] for s, _, _ in diverse][:2] == ["First", "Other"]
     assert "diversity penalty" in diverse[-1][2]
+
+
+# --- Edge cases found in the bug sweep ---
+
+from src.main import format_table
+
+
+def test_negative_k_is_rejected():
+    songs = [make_song_dict()]
+    with pytest.raises(ValueError):
+        recommend_songs({"genre": "pop"}, songs, k=-1)
+    with pytest.raises(ValueError):
+        recommend_songs({"genre": "pop"}, songs, k=-1, diversity=True)
+
+
+def test_k_larger_than_catalog_and_zero():
+    songs = [make_song_dict(id=1), make_song_dict(id=2)]
+    assert len(recommend_songs({"genre": "pop"}, songs, k=10)) == 2
+    assert len(recommend_songs({"genre": "pop"}, songs, k=10, diversity=True)) == 2
+    assert recommend_songs({"genre": "pop"}, songs, k=0) == []
+
+
+def test_empty_table_does_not_crash():
+    assert "Title" in format_table([])
+
+
+def test_text_preferences_ignore_case_and_spaces():
+    song = make_song_dict()
+    score, reasons = score_song({"genre": " Pop ", "mood": "HAPPY", "language": "English"}, song)
+    assert score == pytest.approx(2.0 + 1.0 + 0.5)
+
+
+def test_tags_ignore_case_duplicates_and_plain_strings():
+    song = make_song_dict(mood_tags=["warm", "bright"])
+    assert score_song({"tags": ["Warm"]}, song)[0] == pytest.approx(1.0)
+    assert score_song({"tags": ["bright", "bright"]}, song)[0] == pytest.approx(1.0)
+    assert score_song({"tags": "warm"}, song)[0] == pytest.approx(1.0)
+    assert score_song({"tags": []}, song)[0] == 0.0
+
+
+def test_numeric_preferences_given_as_text_still_work():
+    song = make_song_dict(energy=0.8)
+    assert score_song({"energy": "0.8"}, song)[0] == pytest.approx(1.5)
+
+
+def test_recommender_handles_duplicate_song_ids():
+    def song(title):
+        return Song(1, title, "x", "pop", "happy", 0.5, 100, 0.5, 0.5, 0.5)
+    rec = Recommender([song("a"), song("b")])
+    user = UserProfile("pop", "happy", 0.5, False)
+    assert sorted(s.title for s in rec.recommend(user, k=2)) == ["a", "b"]
+
+
+def test_load_songs_reports_bad_rows(tmp_path):
+    bad = tmp_path / "bad.csv"
+    bad.write_text(
+        "id,title,artist,genre,mood,energy,tempo_bpm,valence,danceability,acousticness,"
+        "popularity,release_decade,mood_tags,instrumentalness,language\n"
+        "1,T,A,pop,happy,not-a-number,100,0.5,0.5,0.5,50,2020,warm,0.1,english\n"
+    )
+    with pytest.raises(ValueError, match="line 2"):
+        load_songs(str(bad))
